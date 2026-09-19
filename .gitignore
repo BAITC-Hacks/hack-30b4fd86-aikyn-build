@@ -1,0 +1,14 @@
+.env
+.env.*
+*.key
+*.pem
+*.crt
+*.token
+*secret*
+*password*
+__pycache__/
+.venv/
+venv/
+node_modules/
+.DS_Store
+Thumbs.db
