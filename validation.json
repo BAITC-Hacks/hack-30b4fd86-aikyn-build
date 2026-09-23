@@ -1,0 +1,88 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "seed": 0,
+      "campaigns": 3,
+      "pilots": 20,
+      "total_cost": 20476,
+      "total_contacts": 5119,
+      "seconds": 0.667
+    },
+    {
+      "seed": 1,
+      "campaigns": 5,
+      "pilots": 20,
+      "total_cost": 27008,
+      "total_contacts": 7774,
+      "seconds": 0.616
+    },
+    {
+      "seed": 2,
+      "campaigns": 5,
+      "pilots": 20,
+      "total_cost": 29588,
+      "total_contacts": 7397,
+      "seconds": 0.63
+    },
+    {
+      "seed": 3,
+      "campaigns": 5,
+      "pilots": 20,
+      "total_cost": 20476,
+      "total_contacts": 6991,
+      "seconds": 0.632
+    },
+    {
+      "seed": 4,
+      "campaigns": 6,
+      "pilots": 20,
+      "total_cost": 26952,
+      "total_contacts": 7746,
+      "seconds": 0.986
+    },
+    {
+      "seed": 5,
+      "campaigns": 5,
+      "pilots": 20,
+      "total_cost": 20476,
+      "total_contacts": 6786,
+      "seconds": 0.661
+    },
+    {
+      "seed": 6,
+      "campaigns": 7,
+      "pilots": 20,
+      "total_cost": 49280,
+      "total_contacts": 12965,
+      "seconds": 0.546
+    },
+    {
+      "seed": 7,
+      "campaigns": 5,
+      "pilots": 20,
+      "total_cost": 29936,
+      "total_contacts": 7484,
+      "seconds": 0.588
+    },
+    {
+      "seed": 8,
+      "campaigns": 5,
+      "pilots": 20,
+      "total_cost": 26076,
+      "total_contacts": 6519,
+      "seconds": 1.254
+    },
+    {
+      "seed": 9,
+      "campaigns": 7,
+      "pilots": 20,
+      "total_cost": 42896,
+      "total_contacts": 10724,
+      "seconds": 0.596
+    }
+  ],
+  "submission_reproducible": true,
+  "submission_sha256": "b7704e14de0340ce5d76bd8d2aff23315829d880fe85560fb101c62f073ac828",
+  "total_seconds": 12.293
+}

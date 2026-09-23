@@ -1,45 +1,68 @@
-# AIKYN BUILD · HackAlem AI 2026
+# AIKYN BILD — Beeline Tariff Marketing Campaigns
 
-Official private team repository for **AIKYN BUILD**.
+Агент для HackAlem AI 2026: анализирует историю переходов, проверяет гипотезы пилотами и возвращает до 10 тарифных кампаний с учётом бюджета и охвата. Данные синтетические.
 
-Track: **Construction**
+## Быстрый запуск (Windows PowerShell)
 
-## Status
+Проверено на Python 3.14. Для запуска откройте корень репозитория:
 
-Pre-hackathon preparation only.
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:PYTHONIOENCODING='utf-8'
+.\.venv\Scripts\python.exe local_eval.py
+.\.venv\Scripts\python.exe local_eval.py --runs 10
+.\.venv\Scripts\python.exe make_submission.py
+.\.venv\Scripts\python.exe verify_pass.py
+```
 
-The official case has not been published yet. No case solution is implemented in this repository before the hackathon starts.
+На других ОС используйте Python из своего виртуального окружения. Все команды запускаются из корня repo: организаторские скрипты используют относительные пути данных.
 
-## Team goal
+## Основной сценарий и demo
 
-Build a working agentic-AI solution for the official Construction case released at HackAlem AI.
+Вход: `customer_profile.csv`, справочники и история `data/change_tariff.csv`.
+Действие: `Agent.act(env)` формирует гипотезы, проводит реальные пилоты через публичный `env.run_pilot`, пересматривает оценки и выбирает кампании.
+Выход: план в `submission.csv` и отчёт `local_eval.py` о приросте, расходах и охвате.
 
-## Working principle
+Показать жюри: запуск `local_eval.py`, чистый результат и соблюдение лимитов, затем `submission.csv` и повторную генерацию. `verify_pass.py` проверяет повторяемость файла и сохраняет `validation.json`.
 
-Observer → analysis → action.
+## Подход
 
-We will not guess the case in advance. We prepare the workflow, then map the official case into it when the event starts.
+1. Исторические относительные изменения ARPU агрегируются медианой по исходному тарифу, ARPU-сегменту и целевому тарифу. Малые группы получают меньший вес. История определяет порядок разведки, а не скрытые эффекты.
+2. До 12 первых пилотов исследуют разные сегменты. Оставшиеся пилоты уточняют перспективные варианты с учётом неопределённости; до трёх измерений на гипотезу.
+3. Решения используют среднее из пилотов и консервативную поправку, убывающую с числом наблюдений. Это эвристика риска, не гарантированный доверительный интервал для скрытой аудитории.
+4. Первая версия сравнивает SMS с бесплатным push. Дорогие каналы пока не используются: перенос измерений на более сильный канал может быть неверным из-за насыщения конверсии.
+5. Финальные сегменты не пересекаются. Планировщик резервирует деньги и контакты с учётом пилотов, не полагаясь на автоматическое обрезание оценщиком. Крупные сегменты разбиваются доступными фильтрами.
+6. Если нет консервативно положительного варианта, возвращается лучший доступный проверенный вариант через бесплатный канал. Такой fallback отмечен именем `fallback_risk` и может дать отрицательный результат.
 
-## Starting assets
+Агент использует pandas и стандартную библиотеку, работает локально без LLM/API-ключей. Публичный интерфейс среды — единственный источник результатов пилотов; скрытые внутренности и модель эффектов агент не читает. При отсутствии истории гипотезы выбираются детерминированно без исторического ранжирования.
 
-We already have experience with:
+## PASS и ограничения
 
-- self-hosted Qwen 2.5 14B;
-- structured task workflows;
-- protected API and authentication boundaries;
-- persistence and evidence;
-- public GALYMZHAN interface;
-- PAF — Protocol for Agentic Flow.
+- 1–10 валидных финальных кампаний; существующие тарифы и каналы.
+- Более нуля и не более 20 пилотов, 10–200 абонентов в пилоте.
+- До 5000 абонентов на кампанию, 15000 контактов и 100000 у.е. всего, включая пилоты.
+- План зависит от наблюдений; `submission.csv` воспроизводится при seed=42.
+- Рабочая цель времени: менее 5 минут, что также удовлетворяет 10 минутам основного условия.
 
-These are capabilities, not a prebuilt answer to the hackathon case.
+`verify_pass.py` проверяет сырые выходы агента до sanitizing/capping оценщика, отсутствие пересечения финальных сегментов, реальные затраты с пилотами, время на 10 seed, а также идентичность повторного CSV при seed=42. `local_eval.py --runs 10` отдельно оценивает чистый результат.
 
-## Repo layout
+Важно: поле «Кампаний» в отчёте local_eval включает пилоты. Например, 24 = 20 пилотов + 4 финальные кампании. Строки «Осталось бюджета/охвата» показывают остаток после пилотов; итоговые расходы смотрите в общей таблице результата.
 
-- `docs/CASE_INTAKE.md` — first 15-minute case decomposition
-- `docs/RUNBOOK.md` — day-of-hackathon execution plan
-- `docs/DEMO_CHECKLIST.md` — demo quality gate
-- `docs/DECISIONS.md` — short architecture decision log
+## Первый локальный результат
 
-Public portfolio: https://github.com/agihomecore/hackalem-ai-paf
+На seed=42: 4 финальные кампании, 20 пилотов, чистый прирост 1184176 у.е., расходы 23056, контакты 5764. На seed 0–9: 10 из 10 результатов положительные; минимум 1185097, медиана 1336608, максимум 1824165 у.е. Округлено до целых.
 
-Public interface: https://galymzhan.com
+Это проверка на мок-эффектах, не прогноз конкурсного балла. История относится к другой выборке. Все положительные результаты на скрытой среде гарантировать невозможно.
+
+## Файлы и сдача
+
+- `agent.py` — решение команды, класс Agent и метод act(env).
+- `submission.csv` — воспроизводимый план, генерируется make_submission.py.
+- `requirements.txt` — зависимости.
+- `verify_pass.py`, `validation.json` — дополнительные проверки и результат.
+- `local_eval.py`, `make_submission.py`, `environment.py`, `mock_environment.py`, `scoring_core.py`, шаблон и данные — неизменённый пакет участника.
+- `PARTICIPANT_GUIDE.md` — условие из пакета. Отдельный PDF кейса содержит также рубрику 25/25/25/15/10; README и воспроизводимость дают до 25 баллов.
+- `docs/` — прежние подготовительные документы, сохранены. Их упоминания Construction и старых названий не определяют текущий кейс.
+
+Официальный repo: BAITC-Hacks/hack-30b4fd86-aikyn-build. Команда: AIKYN BILD. SUN — инфраструктура. Доступ через локальный checkout и обычный Git. OBSERVER → ANALYSIS → ACTION. Перед push — status, diff и явное подтверждение пользователя; автоматического push нет.
