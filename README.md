@@ -1,45 +1,38 @@
-# AIKYN BUILD · HackAlem AI 2026
+# 🚀 AIKYN BUILD: Умный агент управления маркетинговыми кампаниями
 
-Official private team repository for **AIKYN BUILD**.
+**Хакатон:** HackAlem AI  
+**Трек:** Beeline Tariff Marketing Campaigns  
+**Команда:** AIKYN BUILD  
 
-Track: **Construction**
+---
 
-## Status
+## 1. Краткое описание
+Проект решает задачу оптимизации тарифных маркетинговых кампаний для оператора связи. Цель — максимизировать чистый прирост ARPU (средней выручки на абонента), не превышая жесткий бюджет в 100 000 у.е. на коммуникации. Агент самостоятельно исследует базу из 23 441 абонента, проводит тестовые пилоты для снижения неопределенности и формирует до 10 высококонверсионных кампаний.
 
-Pre-hackathon preparation only.
+## 2. Что реализовано
+* **Математический пре-фильтр (Clustering):** Группировка 23+ тысяч абонентов в целевые сегменты на основе потребления (`arpu_segment`, `data_segment`, `call_segment`) для минимизации нагрузки на LLM.
+* **LLM-Стратег (Оркестратор пилотов):** Нейросеть оценивает результаты "разведки" (пилотных запусков) и принимает математически обоснованное решение о масштабировании кампании или смене тарифа/канала.
+Ё* **Failsafe-механизм (Fallback):** Резервный алгоритм на чистом Python, который гарантирует выдачу валидного плана кампаний даже в случае таймаута или ошибки на стороне API нейросети.
 
-The official case has not been published yet. No case solution is implemented in this repository before the hackathon starts.
+## 3. Как работает решение (Workflow)
+1. **Агрегация:** Скрипт анализирует `customer_profile.csv` и выделяет наиболее перспективные кластеры абонентов (исключая слишком мелкие группы и группы свыше 5000 человек).
+2. **Разведка (Pilots):** Агент вызывает метод среды `env.run_pilot` на малых выборках (100-200 человек) для проверки гипотез с минимальными затратами бюджета.
+3. **Анализ ROI:** LLM оценивает соотношение "Прирост ARPU минус стоимость канала" (например, SMS за 4 у.е. vs Call за 160 у.е.).
+4. **Масштабирование:** Успешные пилоты разворачиваются на весь целевой сегмент (до 10 кампаний в итоговом `submission.csv`).
 
-## Team goal
+## 4. Технологии
+* **Язык:** Python 3.x
+* **Обработка данных:** `pandas` (быстрая векторизованная фильтрация и агрегация датасетов).
+* **Сетевые запросы:** `httpx` (асинхронное/синхронное взаимодействие с API).
+* **AI-движок:** OpenAI-совместимое API (Qwen / GPT-4o-mini) в роли аналитика-стратега.
+* **Среда оценки:** Встроенная песочница хакатона (`local_eval.py`).
 
-Build a working agentic-AI solution for the official Construction case released at HackAlem AI.
+## 5. Архитектура проекта
+* `agent.py` — Главный модуль. Содержит класс `Agent` с методом `act(self, env)`. Управляет логикой вызова пилотов, обращением к LLM и формированием итогового JSON-ответа. Упакован в блок `try/except` для отказоустойчивости.
+* `data_prep.py` *(внутренний модуль)* — Отвечает за предварительную кластеризацию базы, чтобы в контекст LLM уходила только агрегированная статистика, а не сырые профили.
 
-## Working principle
-
-Observer → analysis → action.
-
-We will not guess the case in advance. We prepare the workflow, then map the official case into it when the event starts.
-
-## Starting assets
-
-We already have experience with:
-
-- self-hosted Qwen 2.5 14B;
-- structured task workflows;
-- protected API and authentication boundaries;
-- persistence and evidence;
-- public GALYMZHAN interface;
-- PAF — Protocol for Agentic Flow.
-
-These are capabilities, not a prebuilt answer to the hackathon case.
-
-## Repo layout
-
-- `docs/CASE_INTAKE.md` — first 15-minute case decomposition
-- `docs/RUNBOOK.md` — day-of-hackathon execution plan
-- `docs/DEMO_CHECKLIST.md` — demo quality gate
-- `docs/DECISIONS.md` — short architecture decision log
-
-Public portfolio: https://github.com/agihomecore/hackalem-ai-paf
-
-Public interface: https://galymzhan.com
+## 6. Установка и запуск
+1. Клонируйте репозиторий:
+   ```bash
+   git clone [https://github.com/BAITC-Hacks/hack-30b4fd86-aikyn-build.git](https://github.com/BAITC-Hacks/hack-30b4fd86-aikyn-build.git)
+   cd hack-30b4fd86-aikyn-build
