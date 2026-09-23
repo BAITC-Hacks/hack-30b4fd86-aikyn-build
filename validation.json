@@ -7,7 +7,7 @@
       "pilots": 20,
       "total_cost": 27356,
       "total_contacts": 6839,
-      "seconds": 0.09
+      "seconds": 0.095
     },
     {
       "seed": 1,
@@ -15,7 +15,7 @@
       "pilots": 20,
       "total_cost": 33888,
       "total_contacts": 8472,
-      "seconds": 0.09
+      "seconds": 0.091
     },
     {
       "seed": 2,
@@ -23,7 +23,7 @@
       "pilots": 20,
       "total_cost": 31444,
       "total_contacts": 9494,
-      "seconds": 0.086
+      "seconds": 0.089
     },
     {
       "seed": 3,
@@ -55,7 +55,7 @@
       "pilots": 20,
       "total_cost": 46260,
       "total_contacts": 11565,
-      "seconds": 0.089
+      "seconds": 0.087
     },
     {
       "seed": 7,
@@ -63,7 +63,7 @@
       "pilots": 20,
       "total_cost": 23056,
       "total_contacts": 5764,
-      "seconds": 0.089
+      "seconds": 0.088
     },
     {
       "seed": 8,
@@ -71,7 +71,7 @@
       "pilots": 20,
       "total_cost": 32956,
       "total_contacts": 10347,
-      "seconds": 0.09
+      "seconds": 0.088
     },
     {
       "seed": 9,
@@ -79,10 +79,10 @@
       "pilots": 20,
       "total_cost": 38808,
       "total_contacts": 9702,
-      "seconds": 0.088
+      "seconds": 0.089
     }
   ],
   "submission_reproducible": true,
   "submission_sha256": "6d3b71906eb7a21b451d2e174ccc0bac3d0f9af4d411194ed52c2f70d5c0eb2d",
-  "total_seconds": 1.643
+  "total_seconds": 1.662
 }

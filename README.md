@@ -81,4 +81,4 @@ deactivate
 - `PARTICIPANT_GUIDE.md` — условие из пакета. Отдельный PDF кейса содержит также рубрику 25/25/25/15/10; README и воспроизводимость дают до 25 баллов.
 - `docs/` — прежние подготовительные документы, сохранены. Их упоминания Construction и старых названий не определяют текущий кейс.
 
-Официальный repo: BAITC-Hacks/hack-30b4fd86-aikyn-build. Команда: AIKYN BILD. SUN — инфраструктура. Доступ через локальный checkout и обычный Git. OBSERVER → ANALYSIS → ACTION. Перед push — status, diff и явное подтверждение пользователя; автоматического push нет.
+Официальный repo: BAITC-Hacks/hack-30b4fd86-aikyn-build. Команда: AIKYN BILD.
