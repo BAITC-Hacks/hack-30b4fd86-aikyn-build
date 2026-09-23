@@ -1,19 +1,17 @@
-# Architecture · placeholder
+# Архитектура AIKYN BILD
 
-The final architecture is case-dependent and will be chosen only after the official case is published.
+Кейс Beeline Tariff Marketing Campaigns. Локальный Python-агент с pandas.
 
-## Reusable building blocks available to the team
+Профиль аудитории и справочники из env + история переходов → Agent.act(env) → гипотезы → публичные пилоты → уточнение оценок → выбор кампаний в пределах ресурсов → submission.csv.
 
-- Web UI
-- Protected backend/API
-- Agentic task pipeline
-- Qwen 2.5 14B inference
-- Validation layer
-- Persistence / evidence
-- External APIs or datasets if required by the case
+- agent.py — наша стратегия: история для ранжирования, пилоты для решений, эвристическая поправка неопределённости.
+- environment.py и mock_environment.py — среда организаторов.
+- scoring_core.py и local_eval.py — оценщик организаторов.
+- make_submission.py — стандартный экспорт.
+- verify_pass.py — наши независимые проверки лимитов, времени и воспроизводимости.
 
-## Rule
+Финальные сегменты не пересекаются. Бюджет и контакты учитываются вместе с пилотами. Первая версия сравнивает SMS и push. Внешняя модель, API-сервер и пользовательский интерфейс не используются.
 
-Use the smallest subset needed to satisfy the official case and judging criteria.
+Положительные мок-результаты не гарантируют скрытый балл. Временная ошибка пилота допускает один повтор при неизменных ресурсах. При полном отказе пилотов возвращается пустой план с диагностикой; это не PASS.
 
-No production credentials, internal addresses, or private datasets belong in this repository.
+Подробности: [реализация](IMPLEMENTATION.md). [Материал защиты](DEMODAY_DEFENSE.md).

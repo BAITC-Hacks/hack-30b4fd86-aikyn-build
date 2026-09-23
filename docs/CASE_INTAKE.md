@@ -1,28 +1,21 @@
-# CASE INTAKE · first 15 minutes
+# Разбор кейса Beeline
 
-When the official Construction case appears, copy the exact task here before coding.
+Команда AIKYN BILD. Пользователь — маркетинговый аналитик. Цель — выбрать аудиторию, тарифы и каналы для чистого прироста ARPU с учётом стоимости контактов.
 
-## Extract
+Вход: профили, история переходов, справочники и публичный интерфейс пилотов. Выход: 1–10 кампаний из Agent.act(env) и воспроизводимый submission.csv.
 
-- User / stakeholder
-- Pain / problem
-- Required output
-- Required data
-- Hard constraints
-- Evaluation criteria
-- What must be demonstrated live
-- What is explicitly out of scope
+## Обязательный PASS
 
-## Unknowns
+Агент запускается без ошибок, использует результаты пилотов, выдаёт валидный непустой план и соблюдает ограничения:
 
-List every ambiguity. Do not invent answers.
+- 100000 у.е. и 15000 контактов, включая пилоты;
+- до 5000 абонентов на кампанию;
+- до 20 пилотов по 10–200 человек;
+- до 10 минут по условию; целимся в менее 5 минут согласно более строгому шаблону;
+- никаких попыток извлечения скрытых эффектов среды.
 
-## PASS condition
+Оценка из отдельного PDF: работоспособность 25, техническая реализация 25, README и воспроизводимость 25, ценность 15, потенциал и оригинальность 10 баллов.
 
-Write one sentence:
+Demo: данные → запуск → пилоты → план → чистый результат → проверка воспроизводимости.
 
-> The solution passes if ...
-
-## Smallest demo
-
-Define the smallest end-to-end flow that proves the PASS condition.
+Источник требований: PARTICIPANT_GUIDE.md и официальный PDF кейса. Фактический дедлайн и порядок отправки уточняются у организаторов.
