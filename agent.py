@@ -121,8 +121,8 @@ class Agent:
             fewest_repeats = min(c['repeats'] for c in plausible)
             candidate = max((c for c in plausible
                              if c['repeats'] == fewest_repeats), key=opportunity)
-            if not pilot(candidate):
-                continue
+            if not pilot(candidate) and not candidate['failed']:
+                break
 
         if not self.audit['pilots']:
             self.audit['refusal'] = 'No successful pilots; campaign plan withheld.'

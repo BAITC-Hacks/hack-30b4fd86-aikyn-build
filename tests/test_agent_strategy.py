@@ -136,3 +136,31 @@ def test_repeat_pilots_cover_plausible_hypotheses_before_third_attempt():
 
     assert segments.count("MID") == 2
     assert segments.count("HIGH") == 2
+
+
+def test_refinement_stops_when_resources_cannot_fund_another_pilot():
+    env = _make_env(pilots_left=2, remaining_contacts=500)
+    env.channels["sms"]["cost_per_contact"] = 4
+    env.remaining_budget = 160
+    calls = 0
+
+    def run_pilot(**kwargs):
+        nonlocal calls
+        calls += 1
+        count = kwargs["n_customers"]
+        cost = count * env.channels[kwargs["channel"]]["cost_per_contact"]
+        assert cost <= env.remaining_budget
+        env.remaining_budget -= cost
+        env.remaining_contacts -= count
+        env.pilots_left -= 1
+        return {"n_customers": count, "observed_lift_ratio": 0.5}
+
+    env.run_pilot = run_pilot
+
+    campaigns = _agent_without_priors().act(env)
+
+    assert calls == 1
+    assert env.remaining_budget == 0
+    assert env.remaining_contacts == 460
+    assert env.pilots_left == 1
+    assert campaigns == []
