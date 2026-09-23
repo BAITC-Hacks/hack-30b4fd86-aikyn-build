@@ -4,6 +4,13 @@ import math
 import pandas as pd
 
 
+PER_CUSTOMER_STD = 0.804
+
+
+def _pilot_uncertainty(samples):
+    return PER_CUSTOMER_STD / math.sqrt(samples)
+
+
 class Agent:
     def _priors(self):
         path = Path(__file__).resolve().parent / 'data' / 'change_tariff.csv'
@@ -41,7 +48,8 @@ class Agent:
                                        target=target, prior=prior, frame=frame,
                                        priority=(max(prior, 0) + .05)
                                        * float(frame.predicted_arpu.sum()),
-                                       samples=0, weighted=0., repeats=0))
+                                       samples=0, weighted=0., repeats=0,
+                                       failed=False))
         candidates.sort(key=lambda c: (-c['priority'], c['current'], c['target']))
         channel = 'sms' if 'sms' in env.channels else min(
             env.channels, key=lambda k: env.channels[k]['cost_per_contact'])
@@ -53,13 +61,29 @@ class Agent:
                 count = min(count, int(env.remaining_budget // cost))
             if count < 10 or env.pilots_left <= 0:
                 return False
-            try:
-                result = env.run_pilot(target_tariff=candidate['target'], channel=channel,
-                                       n_customers=count,
-                                       filter_current_tariff=candidate['current'],
-                                       filter_arpu_segment=candidate['segment'])
-            except (RuntimeError, ValueError):
-                return False
+            for attempt in range(2):
+                counters = (env.remaining_budget, env.remaining_contacts,
+                            env.pilots_left)
+                try:
+                    result = env.run_pilot(
+                        target_tariff=candidate['target'], channel=channel,
+                        n_customers=count,
+                        filter_current_tariff=candidate['current'],
+                        filter_arpu_segment=candidate['segment'])
+                    break
+                except (RuntimeError, ValueError) as error:
+                    counters_changed = counters != (
+                        env.remaining_budget, env.remaining_contacts, env.pilots_left)
+                    self.audit.setdefault('pilot_errors', []).append({
+                        'target_tariff': candidate['target'],
+                        'attempt': attempt + 1,
+                        'error': type(error).__name__,
+                        'counters_changed': counters_changed,
+                    })
+                    if attempt == 0 and not counters_changed:
+                        continue
+                    candidate['failed'] = True
+                    return False
             n, ratio = int(result['n_customers']), float(result['observed_lift_ratio'])
             if n > 0 and math.isfinite(ratio):
                 candidate['samples'] += n
@@ -78,29 +102,38 @@ class Agent:
         exploration += [c for c in candidates if not any(c is e for e in exploration)]
         explored = []
         for candidate in exploration[:12]:
-            if not pilot(candidate):
-                break
-            explored.append(candidate)
+            if pilot(candidate):
+                explored.append(candidate)
         # Refine plausible winners; uncertainty is a conservative heuristic,
         # not a calibrated guarantee for the hidden population.
         while explored and env.pilots_left > 0:
-            eligible = [c for c in explored if c['samples'] and c['repeats'] < 3]
+            eligible = [c for c in explored if c['samples'] and c['repeats'] < 3
+                        and not c['failed']]
             if not eligible:
                 break
             def opportunity(c):
                 mean = c['weighted'] / c['samples']
-                uncertainty = .85 / math.sqrt(c['samples'])
+                uncertainty = _pilot_uncertainty(c['samples'])
                 return (mean + uncertainty) * float(c['frame'].predicted_arpu.sum())
-            candidate = max(eligible, key=opportunity)
-            if opportunity(candidate) <= 0 or not pilot(candidate):
+            plausible = [c for c in eligible if opportunity(c) > 0]
+            if not plausible:
                 break
+            fewest_repeats = min(c['repeats'] for c in plausible)
+            candidate = max((c for c in plausible
+                             if c['repeats'] == fewest_repeats), key=opportunity)
+            if not pilot(candidate):
+                continue
+
+        if not self.audit['pilots']:
+            self.audit['refusal'] = 'No successful pilots; campaign plan withheld.'
+            return []
 
         options = []
         for c in explored:
             if not c['samples']:
                 continue
             mean = c['weighted'] / c['samples']
-            lower = mean - 1.28 * .85 / math.sqrt(c['samples'])
+            lower = mean - 1.28 * _pilot_uncertainty(c['samples'])
             frame = c['frame']
             # Split large cells using supported filters rather than relying on truncation.
             parts = [(None, None, frame)] if len(frame) <= 5000 else [
