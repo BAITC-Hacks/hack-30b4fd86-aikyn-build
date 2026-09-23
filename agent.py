@@ -125,8 +125,53 @@ class Agent:
                 break
 
         if not self.audit['pilots']:
-            self.audit['refusal'] = 'No successful pilots; campaign plan withheld.'
-            return []
+            # A failed pilot API should not prevent a feasible, clearly marked
+            # contingency plan. Use historical data only to rank this untested
+            # fallback, and reserve against the environment's current balances.
+            fallback_options = []
+            cheapest_channel, cheapest_spec = min(
+                env.channels.items(),
+                key=lambda item: (item[1]['cost_per_contact'], item[0]))
+            for c in candidates:
+                frame = c['frame']
+                parts = [(None, None, frame)] if len(frame) <= 5000 else [
+                    (str(data), str(call), part) for (data, call), part in
+                    frame.groupby(['data_segment', 'call_segment'],
+                                  observed=True, sort=True)]
+                for data, call, part in parts:
+                    count = len(part)
+                    if not 0 < count <= 5000 or count > env.remaining_contacts:
+                        continue
+                    money = count * cheapest_spec['cost_per_contact']
+                    if money > env.remaining_budget:
+                        continue
+                    estimated_net = (
+                        c['prior'] * cheapest_spec['conversion_multiplier']
+                        * float(part.predicted_arpu.sum()) - money)
+                    campaign = dict(
+                        campaign_name='AIKYN_BILD_untested_fallback',
+                        filter_current_tariff=c['current'],
+                        filter_arpu_segment=c['segment'],
+                        target_tariff=c['target'], channel=cheapest_channel)
+                    if data is not None:
+                        campaign.update(filter_data_segment=data,
+                                        filter_call_segment=call)
+                    fallback_options.append((
+                        estimated_net, money, count, campaign))
+
+            if not fallback_options:
+                self.audit['refusal'] = (
+                    'No successful pilots or feasible contingency campaign.')
+                return []
+
+            best = max(fallback_options,
+                       key=lambda option: (option[0], -option[1], -option[2]))
+            self.audit['fallback'] = (
+                'untested historical-prior contingency after pilot failures.')
+            self.audit['campaigns'].append(dict(
+                campaign=best[3].copy(), contacts=best[2], cost=best[1],
+                estimated_net=best[0], untested=True))
+            return [best[3]]
 
         options = []
         for c in explored:
