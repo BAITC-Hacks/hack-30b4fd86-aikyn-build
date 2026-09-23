@@ -17,7 +17,22 @@ $env:PYTHONIOENCODING='utf-8'
 .\.venv\Scripts\python.exe verify_pass.py
 ```
 
-На других ОС используйте Python из своего виртуального окружения. Все команды запускаются из корня repo: организаторские скрипты используют относительные пути данных.
+## Быстрый запуск (macOS)
+
+Откройте Terminal, перейдите в корень репозитория и выполните:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python local_eval.py
+python local_eval.py --runs 10
+python make_submission.py
+python verify_pass.py
+deactivate
+```
+
+На macOS используйте Python 3 (`python3`). Все команды запускаются из корня repo: организаторские скрипты используют относительные пути данных.
 
 ## Основной сценарий и demo
 
