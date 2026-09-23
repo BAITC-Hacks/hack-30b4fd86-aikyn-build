@@ -1,0 +1,6 @@
+campaign_name,filter_arpu_segment,filter_data_segment,filter_call_segment,filter_current_tariff,target_tariff,channel
+AIKYN_BILD_01,LOW,,,tariff_8,tariff_9,sms
+AIKYN_BILD_02,HIGH,,,tariff_4,tariff_12,sms
+AIKYN_BILD_03,LOW,,,tariff_4,tariff_9,sms
+AIKYN_BILD_04,LOW,,,tariff_12,tariff_8,sms
+AIKYN_BILD_05,MID,,,tariff_10,tariff_11,sms

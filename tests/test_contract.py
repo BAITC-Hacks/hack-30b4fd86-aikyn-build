@@ -1,41 +1,117 @@
-import os
-import sys
+"""Adversarial checks using only the documented agent/environment interface."""
 import unittest
-from pathlib import Path
 
-
-CHECKOUT = Path(os.environ.get(
-	"AIKYN_REPO",
-	Path(__file__).resolve().parents[2] / "published-main",
-)).resolve()
-VALIDATION_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(VALIDATION_ROOT))
-
-from verify_pass import (  # noqa: E402
-	check_observation_dependency,
-	check_raw_agent,
-	load_target,
-)
+from agent import Agent
+from mock_environment import make_mock_env
+from scoring_core import apply_filters, validate_strategy
+import pandas as pd
 
 
 class PublicContractTests(unittest.TestCase):
-	@classmethod
-	def setUpClass(cls):
-		cls.repo, cls.modules = load_target(CHECKOUT)
+    def _controlled_observations(self, positive_tariff):
+        env, _ = make_mock_env(seed=42)
+        real_run_pilot = env.run_pilot
 
-	def test_raw_agent_respects_public_limits(self):
-		rows = check_raw_agent(self.modules)
-		self.assertEqual(len(rows), 10)
-		self.assertTrue(all(row["campaigns"] <= 10 for row in rows))
-		self.assertTrue(all(row["pilots"] <= 20 for row in rows))
-		self.assertTrue(all(row["contacts"] <= 15000 for row in rows))
-		self.assertTrue(all(row["cost"] <= 100000 for row in rows))
+        def run_pilot(**kwargs):
+            result = real_run_pilot(**kwargs)
+            # Replace only the public observation returned to Agent.act. Keep all
+            # environment accounting and history updates performed by run_pilot.
+            result = dict(result)
+            result["observed_lift_ratio"] = 1.0 if kwargs["target_tariff"] == positive_tariff else 0.0
+            return result
 
-	def test_agent_uses_observations_and_handles_pilot_failure(self):
-		result = check_observation_dependency(self.modules)
-		self.assertNotEqual(result["positive_campaigns"], result["negative_campaigns"])
-		self.assertEqual(result["error_case"], "completed")
+        env.run_pilot = run_pilot
+        return env
+
+    def test_pilot_observations_change_final_choice(self):
+        # Both tariffs are among the hypotheses actually explored at seed 42.
+        a = Agent().act(self._controlled_observations("tariff_9"))
+        b = Agent().act(self._controlled_observations("tariff_8"))
+        choices_a = {(c["target_tariff"], c.get("filter_current_tariff"), c.get("filter_arpu_segment")) for c in a}
+        choices_b = {(c["target_tariff"], c.get("filter_current_tariff"), c.get("filter_arpu_segment")) for c in b}
+        self.assertNotEqual(choices_a, choices_b, "final choices did not respond to changed pilot observations")
+
+    def test_no_history_and_noisy_observations(self):
+        env, _ = make_mock_env(seed=3)
+        self.assertEqual(env.pilot_history, [])
+        campaigns = Agent().act(env)
+        self.assertTrue(1 <= len(campaigns) <= 10)
+        self.assertTrue(env.pilot_history)
+        self.assertTrue(all(pd.notna(p["observed_lift_ratio"]) for p in env.pilot_history))
+        self.assertTrue(any(p["observed_lift_ratio"] < 0 for p in env.pilot_history))
+
+    def test_negative_observations_are_consumed(self):
+        env, _ = make_mock_env(seed=42)
+        real_run_pilot = env.run_pilot
+        returned = []
+
+        def run_pilot(**kwargs):
+            result = dict(real_run_pilot(**kwargs))
+            result["observed_lift_ratio"] = -0.5
+            returned.append(result["observed_lift_ratio"])
+            return result
+
+        env.run_pilot = run_pilot
+        campaigns = Agent().act(env)
+        self.assertTrue(returned)
+        self.assertTrue(all(value < 0 for value in returned))
+        self.assertTrue(1 <= len(campaigns) <= 10)
+
+    def test_limited_resources_stay_within_actual_accounting(self):
+        env, _ = make_mock_env(seed=42)
+        env.remaining_budget = 160
+        env.remaining_contacts = 500
+        campaigns = Agent().act(env)
+        pilot_cost = sum(p["cost"] for p in env.pilot_history)
+        pilot_contacts = sum(p["n_customers"] for p in env.pilot_history)
+        final_contacts = sum(len(apply_filters(env.customer_profile, pd.Series(c))) for c in campaigns)
+        final_cost = sum(len(apply_filters(env.customer_profile, pd.Series(c))) * env.channels[c["channel"]]["cost_per_contact"] for c in campaigns)
+        self.assertLessEqual(pilot_cost + final_cost, 160)
+        self.assertLessEqual(pilot_contacts + final_contacts, 500)
+
+    def test_first_pilot_error_continues_to_next_hypothesis(self):
+        env, _ = make_mock_env(seed=42)
+        real_run_pilot = env.run_pilot
+        calls = 0
+
+        def reject_first(**kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("injected one-time refusal")
+            return real_run_pilot(**kwargs)
+
+        env.run_pilot = reject_first
+        agent = Agent()
+        campaigns = agent.act(env)
+        self.assertEqual(len(agent.audit['pilot_errors']), 1)
+        self.assertGreater(len(env.pilot_history), 0)
+        self.assertTrue(1 <= len(campaigns) <= 10)
+        validate_strategy(pd.DataFrame(campaigns), env.tariffs)
+
+    def test_all_pilot_calls_failing_uses_valid_contingency(self):
+        env, _ = make_mock_env(seed=42)
+        env.run_pilot = lambda **kwargs: (_ for _ in ()).throw(RuntimeError("injected public API failure"))
+        agent = Agent()
+        campaigns = agent.act(env)
+        self.assertTrue(agent.audit['pilot_errors'])
+        self.assertEqual(env.pilot_history, [])
+        self.assertEqual(len(campaigns), 1)
+        self.assertIn('untested', agent.audit['fallback'])
+        validate_strategy(pd.DataFrame(campaigns), env.tariffs)
+        segment = apply_filters(env.customer_profile, pd.Series(campaigns[0]))
+        self.assertTrue(0 < len(segment) <= 5000)
+        self.assertLessEqual(len(segment), env.remaining_contacts)
+        self.assertLessEqual(len(segment) * env.channels[campaigns[0]['channel']]['cost_per_contact'],
+                             env.remaining_budget)
+
+    def test_zero_contact_capacity_cannot_run_mandatory_pilot(self):
+        env, _ = make_mock_env(seed=42)
+        env.remaining_contacts = 0
+        campaigns = Agent().act(env)
+        self.assertEqual(env.pilot_history, [])
+        self.assertEqual(campaigns, [])
 
 
 if __name__ == "__main__":
-	unittest.main()
+    unittest.main()
