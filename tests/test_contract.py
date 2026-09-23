@@ -3,7 +3,7 @@ import unittest
 
 from agent import Agent
 from mock_environment import make_mock_env
-from scoring_core import apply_filters
+from scoring_core import apply_filters, validate_strategy
 import pandas as pd
 
 
@@ -69,14 +69,41 @@ class PublicContractTests(unittest.TestCase):
         self.assertLessEqual(pilot_cost + final_cost, 160)
         self.assertLessEqual(pilot_contacts + final_contacts, 500)
 
-    def test_pilot_errors_are_visible_as_contract_limitation(self):
+    def test_first_pilot_error_continues_to_next_hypothesis(self):
+        env, _ = make_mock_env(seed=42)
+        real_run_pilot = env.run_pilot
+        calls = 0
+
+        def reject_first(**kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("injected one-time refusal")
+            return real_run_pilot(**kwargs)
+
+        env.run_pilot = reject_first
+        agent = Agent()
+        campaigns = agent.act(env)
+        self.assertEqual(len(agent.audit['pilot_errors']), 1)
+        self.assertGreater(len(env.pilot_history), 0)
+        self.assertTrue(1 <= len(campaigns) <= 10)
+        validate_strategy(pd.DataFrame(campaigns), env.tariffs)
+
+    def test_all_pilot_calls_failing_uses_valid_contingency(self):
         env, _ = make_mock_env(seed=42)
         env.run_pilot = lambda **kwargs: (_ for _ in ()).throw(RuntimeError("injected public API failure"))
-        campaigns = Agent().act(env)
-        # Current agent stops exploration after the first failed pilot. No tested
-        # option then exists, so its output is empty and violates the 1-campaign
-        # minimum. Keep this reproducer explicit until the agent owner fixes it.
-        self.assertEqual(campaigns, [])
+        agent = Agent()
+        campaigns = agent.act(env)
+        self.assertTrue(agent.audit['pilot_errors'])
+        self.assertEqual(env.pilot_history, [])
+        self.assertEqual(len(campaigns), 1)
+        self.assertIn('untested', agent.audit['fallback'])
+        validate_strategy(pd.DataFrame(campaigns), env.tariffs)
+        segment = apply_filters(env.customer_profile, pd.Series(campaigns[0]))
+        self.assertTrue(0 < len(segment) <= 5000)
+        self.assertLessEqual(len(segment), env.remaining_contacts)
+        self.assertLessEqual(len(segment) * env.channels[campaigns[0]['channel']]['cost_per_contact'],
+                             env.remaining_budget)
 
     def test_zero_contact_capacity_cannot_run_mandatory_pilot(self):
         env, _ = make_mock_env(seed=42)

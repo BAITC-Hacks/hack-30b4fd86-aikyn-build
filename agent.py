@@ -30,7 +30,7 @@ class Agent:
             return {}
 
     def act(self, env):
-        self.audit = {'pilots': [], 'campaigns': []}
+        self.audit = {'pilots': [], 'campaigns': [], 'pilot_errors': []}
         profile = env.customer_profile
         priors = self._priors()
         tariffs = sorted(env.tariffs['tariff_plan_code'].astype(str))
@@ -70,8 +70,16 @@ class Agent:
                         n_customers=count,
                         filter_current_tariff=candidate['current'],
                         filter_arpu_segment=candidate['segment'])
+                    if not isinstance(result, dict):
+                        raise TypeError(
+                            f"run_pilot returned {type(result).__name__}, expected dict")
+                    n, ratio = int(result['n_customers']), float(
+                        result['observed_lift_ratio'])
+                    if n <= 0 or n > count or not math.isfinite(ratio):
+                        raise ValueError(
+                            "run_pilot returned invalid customer count or lift")
                     break
-                except (RuntimeError, ValueError) as error:
+                except Exception as error:
                     counters_changed = counters != (
                         env.remaining_budget, env.remaining_contacts, env.pilots_left)
                     self.audit.setdefault('pilot_errors', []).append({
@@ -84,11 +92,9 @@ class Agent:
                         continue
                     candidate['failed'] = True
                     return False
-            n, ratio = int(result['n_customers']), float(result['observed_lift_ratio'])
-            if n > 0 and math.isfinite(ratio):
-                candidate['samples'] += n
-                candidate['weighted'] += n * ratio
-                candidate['repeats'] += 1
+            candidate['samples'] += n
+            candidate['weighted'] += n * ratio
+            candidate['repeats'] += 1
             self.audit['pilots'].append(dict(result))
             return True
 
@@ -125,8 +131,10 @@ class Agent:
                 break
 
         if not self.audit['pilots']:
-            self.audit['refusal'] = 'No successful pilots; campaign plan withheld.'
-            return []
+            self.audit['refusal'] = (
+                'No successful pilots; use an explicitly untested historical-prior '
+                'contingency if the remaining limits allow it.'
+            )
 
         options = []
         for c in explored:
@@ -184,4 +192,51 @@ class Agent:
                 campaign['campaign_name'] = 'AIKYN_BILD_fallback_risk'
                 selected.append(campaign)
                 self.audit['fallback'] = 'No conservative positive option; best tested free option.'
+            else:
+                # If the pilot API is unavailable, keep a valid, low-cost
+                # contingency plan based on public historical priors. This is
+                # explicitly untested and must not be presented as pilot-led.
+                channel_name = min(
+                    env.channels,
+                    key=lambda name: (env.channels[name]['cost_per_contact'], name),
+                )
+                unit_cost = env.channels[channel_name]['cost_per_contact']
+                affordable = int(env.remaining_contacts)
+                if unit_cost > 0:
+                    affordable = min(affordable, int(env.remaining_budget // unit_cost))
+
+                prior_options = []
+                for c in candidates:
+                    frame = c['frame']
+                    parts = [(None, None, frame)] if len(frame) <= 5000 else [
+                        (str(data), str(call), part)
+                        for (data, call), part in frame.groupby(
+                            ['data_segment', 'call_segment'], observed=True, sort=True)
+                    ]
+                    for data, call, part in parts:
+                        size = len(part)
+                        if 0 < size <= min(5000, affordable):
+                            priority = (max(c['prior'], 0) + .05) * float(
+                                part['predicted_arpu'].sum())
+                            prior_options.append((priority, c, data, call))
+
+                if prior_options:
+                    _, c, data, call = max(
+                        prior_options,
+                        key=lambda item: (item[0], item[1]['current'], item[1]['target']),
+                    )
+                    campaign = {
+                        'campaign_name': 'AIKYN_BILD_pilot_unavailable_fallback',
+                        'filter_current_tariff': c['current'],
+                        'filter_arpu_segment': c['segment'],
+                        'target_tariff': c['target'],
+                        'channel': channel_name,
+                    }
+                    if data is not None:
+                        campaign.update(filter_data_segment=data, filter_call_segment=call)
+                    selected.append(campaign)
+                    self.audit['fallback'] = (
+                        'No usable pilot result; historical-prior contingency on the '
+                        'cheapest affordable channel. This campaign is untested.'
+                    )
         return selected

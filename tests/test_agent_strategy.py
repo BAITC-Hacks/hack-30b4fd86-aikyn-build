@@ -89,7 +89,7 @@ def test_pilot_failure_after_counter_change_is_not_retried():
     assert campaigns[0]["target_tariff"] == "tariff_3"
 
 
-def test_complete_pilot_failure_returns_empty_plan_with_refusal_diagnostic():
+def test_complete_pilot_failure_returns_untested_contingency():
     env = _make_env(pilots_left=5)
     calls = 0
 
@@ -104,8 +104,10 @@ def test_complete_pilot_failure_returns_empty_plan_with_refusal_diagnostic():
     campaigns = agent.act(env)
 
     assert calls == 2
-    assert campaigns == []
-    assert agent.audit["refusal"] == "No successful pilots; campaign plan withheld."
+    assert len(campaigns) == 1
+    assert campaigns[0]["campaign_name"] == "AIKYN_BILD_pilot_unavailable_fallback"
+    assert "untested" in agent.audit["fallback"]
+    assert "No successful pilots" in agent.audit["refusal"]
 
 
 def test_repeat_pilots_cover_plausible_hypotheses_before_third_attempt():
