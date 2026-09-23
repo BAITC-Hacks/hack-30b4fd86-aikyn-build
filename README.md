@@ -64,6 +64,6 @@ $env:PYTHONIOENCODING='utf-8'
 - `verify_pass.py`, `validation.json` — дополнительные проверки и результат.
 - `local_eval.py`, `make_submission.py`, `environment.py`, `mock_environment.py`, `scoring_core.py`, шаблон и данные — неизменённый пакет участника.
 - `PARTICIPANT_GUIDE.md` — условие из пакета. Отдельный PDF кейса содержит также рубрику 25/25/25/15/10; README и воспроизводимость дают до 25 баллов.
-- `docs/` — прежние подготовительные документы, сохранены. Их упоминания Construction и старых названий не определяют текущий кейс.
+- `docs/ARCHITECTURE.md`, `docs/CASE_INTAKE.md`, `docs/DEMO_CHECKLIST.md` — актуальные архитектура, требования и проверка demo. Описание реализации — `docs/IMPLEMENTATION.md`, материал защиты — `docs/DEMODAY_DEFENSE.md`.
 
 Официальный repo: BAITC-Hacks/hack-30b4fd86-aikyn-build. Команда: AIKYN BILD. SUN — инфраструктура. Доступ через локальный checkout и обычный Git. OBSERVER → ANALYSIS → ACTION. Перед push — status, diff и явное подтверждение пользователя; автоматического push нет.
